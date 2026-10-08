@@ -11,7 +11,12 @@
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
   <main class="shell">
-    <header class="hero">
+    <nav class="app-nav">
+      <button type="button" class="nav-tab active" data-view="trace">Tìm port</button>
+      <button type="button" class="nav-tab" data-view="config">Config Manager</button>
+    </nav>
+    <div id="view-trace">
+      <header class="hero">
       <div>
         <p class="eyebrow"><span class="pulse"></span> Công cụ mạng nội bộ</p>
         <h1>Trace an IP device to its <span>switch port</span></h1>
@@ -109,9 +114,98 @@
         </div>
       </section>
     </section>
+    </div>
+
+    <div id="view-config" class="hidden">
+      <header class="hero config-hero">
+        <div>
+          <p class="eyebrow"><span class="pulse"></span> Công cụ mạng nội bộ</p>
+          <h1>CISCO <span>CONFIG MANAGER</span></h1>
+          <p class="subtitle">Quản lý, kiểm tra và triển khai cấu hình tập trung</p>
+        </div>
+      </header>
+
+      <section class="panel config-panel">
+        <div class="config-toolbar">
+          <button type="button" class="cm-primary" id="cm-add">＋ Thêm switch</button>
+          <button type="button" class="ghost-button" id="cm-edit">Sửa</button>
+          <button type="button" class="ghost-button" id="cm-delete">Xóa</button>
+          <button type="button" class="ghost-button" id="cm-import">Nhập CSV</button>
+          <input type="file" id="cm-csv-file" accept=".csv,text/csv,text/plain" hidden>
+          <span class="toolbar-sep"></span>
+          <button type="button" class="ghost-button" id="cm-ping">Test Ping</button>
+          <button type="button" class="ghost-button" id="cm-ssh">Test SSH</button>
+          <button type="button" class="cm-primary" id="cm-apply">Áp dụng cấu hình</button>
+        </div>
+
+        <div class="config-table-head">
+          <strong>Thiết bị mạng</strong>
+          <span id="cm-count" class="ip-count">0 thiết bị</span>
+        </div>
+        <div class="batch-table-wrap config-table-wrap">
+          <table class="batch-table config-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="cm-select-all" title="Chọn tất cả"></th>
+                <th>Tên</th><th>Địa chỉ IP</th><th>Username</th><th>Loại thiết bị</th><th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="cm-switch-body"></tbody>
+          </table>
+        </div>
+
+        <div class="config-bottom">
+          <div class="config-editor-box">
+            <label class="config-label" for="cm-commands">Lệnh cấu hình · mỗi lệnh một dòng</label>
+            <textarea id="cm-commands" spellcheck="false"></textarea>
+          </div>
+          <div class="config-log-box">
+            <label class="config-label">Nhật ký hoạt động</label>
+            <pre id="cm-log"></pre>
+          </div>
+        </div>
+
+        <div class="config-project-bar">
+          <button type="button" class="ghost-button" id="cm-new-project">Dự án mới</button>
+          <button type="button" class="ghost-button" id="cm-open-project">Mở dự án</button>
+          <input type="file" id="cm-project-file" accept=".json,application/json" hidden>
+          <button type="button" class="ghost-button" id="cm-save-project">Lưu dự án</button>
+          <button type="button" class="ghost-button" id="cm-save-project-as">Lưu thành...</button>
+          <span id="cm-status" class="config-status">Sẵn sàng</span>
+        </div>
+
+        <p class="form-note config-note">Credential của từng switch được lưu trong trình duyệt (plaintext) — chỉ sử dụng trong mạng quản trị tin cậy.</p>
+      </section>
+    </div>
 
     <footer><span>Cisco Camera Port Tracer</span><span>SSH trực tiếp • Không AI • Không gửi dữ liệu ra Internet</span></footer>
   </main>
   <script src="/app.js" defer></script>
+  <script src="/config-manager.js" defer></script>
+
+  <div id="cm-modal" class="modal hidden">
+    <div class="modal-backdrop" id="cm-modal-backdrop"></div>
+    <div class="modal-card">
+      <h3 id="cm-modal-title">Thêm switch</h3>
+      <input type="hidden" id="cm-modal-index" value="-1">
+      <label class="field"><span>Tên switch</span><input id="cm-f-name" autocomplete="off"></label>
+      <label class="field"><span>Địa chỉ IP</span><input id="cm-f-ip" autocomplete="off"></label>
+      <label class="field"><span>Username</span><input id="cm-f-username" autocomplete="off"></label>
+      <label class="field"><span>Password</span><input id="cm-f-password" type="password" autocomplete="new-password"></label>
+      <label class="field"><span>Enable secret</span><input id="cm-f-secret" type="password" autocomplete="new-password"></label>
+      <label class="field"><span>Loại thiết bị</span>
+        <select id="cm-f-device-type">
+          <option value="cisco_ios">cisco_ios</option>
+          <option value="cisco_ios_telnet">cisco_ios_telnet</option>
+          <option value="cisco_nxos">cisco_nxos</option>
+          <option value="cisco_xe">cisco_xe</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="cm-primary" id="cm-modal-save">Lưu</button>
+        <button type="button" class="ghost-button" id="cm-modal-cancel">Hủy</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

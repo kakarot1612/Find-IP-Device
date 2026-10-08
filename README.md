@@ -2,6 +2,13 @@
 
 Ứng dụng web chạy cục bộ để tìm switch và port vật lý của camera từ địa chỉ IP. Ứng dụng **không dùng AI**, không dùng cloud và không lưu mật khẩu.
 
+## Chức năng
+
+Ứng dụng có hai tab:
+
+1. **Tìm port** — dò đường đi của một IP (camera/thiết bị) xuyên qua nhiều tầng switch Cisco bằng ARP, MAC address-table, CDP/LLDP để tìm switch và port vật lý cuối cùng.
+2. **Config Manager** — quản lý danh sách switch (thêm/sửa/xóa/nhập CSV), soạn lệnh cấu hình và thực thi hàng loạt (Test Ping, Test SSH, Áp dụng cấu hình), kèm lưu/mở dự án JSON. Credential từng switch được lưu trong trình duyệt (plaintext) giống app desktop gốc — chỉ nên dùng trong mạng quản trị tin cậy.
+
 ## Luồng xử lý
 
 1. SSH vào Core switch.

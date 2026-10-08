@@ -197,3 +197,109 @@ footer { display: flex; justify-content: space-between; color: #52657d; font-siz
   .route-arrow { transform: rotate(90deg); justify-self: center; }
   footer { flex-direction: column; gap: 5px; }
 }
+
+/* ---------- App navigation ---------- */
+.app-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 26px;
+  padding: 5px;
+  width: fit-content;
+  background: rgba(3, 10, 20, 0.56);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+.nav-tab {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { background: var(--cyan-soft); color: var(--cyan); }
+
+/* ---------- Config Manager ---------- */
+.config-hero h1 { font-size: clamp(26px, 3.4vw, 44px); }
+.config-panel { padding: 20px 22px 18px; }
+.config-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; }
+.toolbar-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 8px; }
+.cm-primary {
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #16bdb9, #2bddd3);
+  color: #041514;
+  font-weight: 800;
+  padding: 9px 15px;
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: 0 8px 18px rgba(39, 215, 209, 0.14);
+}
+.cm-primary:hover { filter: brightness(1.07); }
+.cm-primary:disabled { cursor: wait; opacity: 0.7; }
+
+.config-table-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.config-table-head strong { font-size: 16px; color: var(--text); }
+.config-table-wrap { max-height: 320px; margin-bottom: 18px; }
+.config-table { min-width: 780px; }
+.config-table .col-check { width: 34px; }
+.config-table th, .config-table td { padding: 10px 11px; }
+.config-table tr.selectable { cursor: pointer; }
+.config-table tr.selectable:hover { background: rgba(39, 215, 209, 0.05); }
+.config-table input[type="checkbox"] { width: auto; padding: 0; cursor: pointer; }
+.status-ok { color: var(--green); }
+.status-err { color: var(--red); }
+
+.config-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.config-editor-box, .config-log-box { display: flex; flex-direction: column; min-width: 0; }
+.config-label { color: var(--muted); font-size: 11px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+.config-editor-box textarea {
+  flex: 1;
+  min-height: 180px;
+  resize: vertical;
+  font-family: ui-monospace, "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.config-log-box pre {
+  flex: 1;
+  min-height: 180px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #050b14;
+  color: #d7e7ef;
+  font: 11px/1.55 ui-monospace, "Consolas", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.config-project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.config-status { margin-left: auto; color: var(--muted); font-size: 11px; }
+.config-note { text-align: left; margin: 14px 0 0; }
+
+/* ---------- Modal ---------- */
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 14, 0.72); backdrop-filter: blur(4px); }
+.modal-card {
+  position: relative;
+  width: min(440px, calc(100% - 32px));
+  background: #0e1c30;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+}
+.modal-card h3 { margin: 0 0 4px; font-size: 16px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+
+@media (max-width: 720px) {
+  .config-bottom { grid-template-columns: 1fr; }
+}

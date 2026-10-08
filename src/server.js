@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { CiscoSshSession } = require('./ssh');
 const { TraceError, traceCamera } = require('./cisco');
+const { pingHost, sshTest, applyConfig, isValidIp } = require('./config-manager');
 
 const PORT = Number(process.env.PORT) || 3030;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -134,6 +135,78 @@ async function handleTraceBatch(request, response) {
   }
 }
 
+async function handleConfigManager(request, response, action) {
+  response.writeHead(200, {
+    'Content-Type': 'application/x-ndjson; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store',
+    Connection: 'keep-alive',
+    'X-Content-Type-Options': 'nosniff',
+  });
+
+  try {
+    const input = await readJson(request);
+    const switches = Array.isArray(input.switches) ? input.switches : [];
+    const commands = Array.isArray(input.commands)
+      ? input.commands.map((command) => String(command).trim()).filter(Boolean)
+      : [];
+
+    if (!switches.length) throw new TraceError('Chưa có switch nào trong danh sách.', 'EMPTY_SWITCH_LIST');
+    if (switches.length > 1000) throw new TraceError('Mỗi lần tối đa 1000 switch.', 'SWITCH_LIST_TOO_LARGE');
+    if (action === 'apply' && !commands.length) throw new TraceError('Chưa có lệnh cấu hình nào.', 'EMPTY_COMMAND_LIST');
+
+    writeEvent(response, { type: 'batch-start', action, total: switches.length });
+
+    let succeeded = 0;
+    let failed = 0;
+    for (let index = 0; index < switches.length; index += 1) {
+      if (response.destroyed) break;
+      const switchInfo = switches[index];
+      const ip = String(switchInfo.ip || '').trim();
+      const name = String(switchInfo.name || '').trim();
+      const batch = { index: index + 1, total: switches.length, ip, name };
+      writeEvent(response, { type: 'item-start', ...batch });
+
+      let result;
+      if (!isValidIp(ip)) {
+        result = { ok: false, message: `IP không hợp lệ: ${ip}` };
+      } else {
+        const createSession = (options) => new CiscoSshSession(options);
+        if (action === 'ping') {
+          result = await pingHost(ip);
+        } else if (action === 'ssh-test') {
+          result = await sshTest(switchInfo, createSession);
+        } else {
+          result = await applyConfig(switchInfo, commands, createSession, (event) => writeEvent(response, { ...event, ...batch }));
+        }
+      }
+
+      if (result.ok) succeeded += 1;
+      else failed += 1;
+      writeEvent(response, {
+        type: 'item-result',
+        ...batch,
+        ok: result.ok,
+        message: result.message,
+        commands: result.output || null,
+      });
+      writeEvent(response, { type: 'item-finish', ...batch, succeeded, failed });
+    }
+
+    writeEvent(response, { type: 'batch-complete', action, total: switches.length, succeeded, failed });
+  } catch (error) {
+    writeEvent(response, {
+      type: 'error',
+      error: {
+        code: error.code || 'UNEXPECTED_ERROR',
+        message: error.message || 'Có lỗi không xác định.',
+        details: error.details || null,
+      },
+    });
+  } finally {
+    response.end();
+  }
+}
+
 function serveStatic(request, response) {
   const requestPath = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
@@ -168,6 +241,9 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method === 'POST' && request.url === '/api/trace') return handleTrace(request, response);
   if (request.method === 'POST' && request.url === '/api/trace-batch') return handleTraceBatch(request, response);
+  if (request.method === 'POST' && request.url === '/api/config-manager/ping') return handleConfigManager(request, response, 'ping');
+  if (request.method === 'POST' && request.url === '/api/config-manager/ssh-test') return handleConfigManager(request, response, 'ssh-test');
+  if (request.method === 'POST' && request.url === '/api/config-manager/apply') return handleConfigManager(request, response, 'apply');
   if (request.method === 'GET' || request.method === 'HEAD') return serveStatic(request, response);
   return sendJson(response, 405, { error: 'Method not allowed' });
 });
