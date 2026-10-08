@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules
+npm-debug.log*
+*.log
+test
+config
+secrets
+.env
+.env.*

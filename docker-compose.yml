@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    image: cisco-camera-port-tracer:local
+    restart: unless-stopped
+    init: true
+    read_only: true
+    ports:
+      - "127.0.0.1:3030:3030"
+    secrets:
+      - ssh_username
+      - ssh_password
+      - ssh_private_key
+      - ssh_key_passphrase
+      - enable_password
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3030/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+secrets:
+  ssh_username:
+    file: ./secrets/ssh_username
+  ssh_password:
+    file: ./secrets/ssh_password
+  ssh_private_key:
+    file: ./secrets/ssh_private_key
+  ssh_key_passphrase:
+    file: ./secrets/ssh_key_passphrase
+  enable_password:
+    file: ./secrets/enable_password

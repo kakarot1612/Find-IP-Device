@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.log
+config/credentials.json
+
+.env
+.env.*
+!.env.example
+/secrets/*
+!/secrets/.gitkeep

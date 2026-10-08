@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1324">
+  <title>Cisco Camera Port Tracer</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow"><span class="pulse"></span> Công cụ mạng nội bộ</p>
+        <h1>Tìm port camera từ <span>địa chỉ IP</span></h1>
+        <p class="subtitle">Tự động chạy ARP, MAC address-table, CDP và LLDP xuyên qua nhiều tầng switch Cisco. Không AI, không cloud, không lưu mật khẩu.</p>
+      </div>
+      <div class="flow-badge" aria-label="Luồng dò">
+        <span>IP</span><i></i><span>MAC</span><i></i><span>SW</span><i></i><span>PORT</span>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <form id="trace-form" class="panel form-panel">
+        <div class="panel-heading">
+          <div><span class="step">01</span><h2>Thông tin dò tìm</h2></div>
+          <span class="secure-label">Chỉ xử lý cục bộ</span>
+        </div>
+
+        <div class="field-grid">
+          <label class="field field-wide">
+            <span>Danh sách IP camera</span>
+            <textarea id="camera-ips" rows="7" placeholder="Mỗi IP một dòng, ví dụ:&#10;10.0.63.125&#10;10.0.63.126&#10;10.0.64.20" spellcheck="false" required></textarea>
+          </label>
+          <div class="import-row field-wide">
+            <label class="import-button" for="camera-file">
+              <input id="camera-file" type="file" accept=".txt,.csv,text/plain,text/csv">
+              <span>Import TXT / CSV</span>
+            </label>
+            <span id="ip-count" class="ip-count">0 IP hợp lệ</span>
+          </div>
+          <label class="field field-wide">
+            <span>Core switch</span>
+            <input id="core-host" placeholder="10.0.254.1" autocomplete="off" required>
+          </label>
+        </div>
+
+        <div id="credential-vault" class="credential-vault checking">
+          <span class="vault-icon">◆</span>
+          <div>
+            <strong id="credential-title">Đang kiểm tra credential...</strong>
+            <small id="credential-detail">Windows DPAPI • Dùng chung cho Core và mọi switch downstream</small>
+          </div>
+        </div>
+
+        <details class="advanced">
+          <summary>Tùy chọn nâng cao</summary>
+          <div class="field-grid advanced-grid">
+            <label class="field">
+              <span>Số hop tối đa</span>
+              <input id="max-hops" type="number" min="1" max="20" value="8">
+            </label>
+            <label class="field">
+              <span>Timeout mỗi lệnh (giây)</span>
+              <input id="timeout" type="number" min="5" max="60" value="15">
+            </label>
+          </div>
+        </details>
+
+        <button id="trace-button" class="primary-button" type="submit">
+          <span class="button-icon">⌁</span><span class="button-text">Bắt đầu dò port</span><span class="button-loader"></span>
+        </button>
+        <p class="form-note">Đổi tài khoản bằng cách chạy <code>setup-credentials.ps1</code>. Tài khoản phải truy cập được toàn bộ switch trong đường đi.</p>
+      </form>
+
+      <section class="panel result-panel">
+        <div class="panel-heading">
+          <div><span class="step">02</span><h2>Kết quả</h2></div>
+          <button id="clear-button" class="ghost-button" type="button">Xóa</button>
+        </div>
+        <div id="empty-state" class="empty-state">
+          <div class="radar"><span class="radar-ring ring-one"></span><span class="radar-ring ring-two"></span><span class="radar-dot"></span></div>
+          <h3>Sẵn sàng dò đường đi</h3>
+          <p>Nhập IP camera và thông tin Core switch để bắt đầu.</p>
+        </div>
+        <div id="run-state" class="run-state hidden">
+          <div id="status-banner" class="status-banner running">
+            <span class="status-indicator"></span>
+            <div><strong id="status-title">Đang kết nối...</strong><small id="status-detail">Khởi tạo phiên dò</small></div>
+          </div>
+          <div id="batch-toolbar" class="batch-toolbar hidden">
+            <div><strong id="batch-progress">0 / 0</strong><small>Đã xử lý</small></div>
+            <button id="export-csv" class="export-button hidden" type="button">Xuất CSV</button>
+          </div>
+          <div id="batch-table-wrap" class="batch-table-wrap hidden">
+            <table class="batch-table">
+              <thead><tr><th>IP camera</th><th>MAC / VLAN</th><th>Switch đích</th><th>Port</th><th>Hop</th><th>Trạng thái</th></tr></thead>
+              <tbody id="batch-table-body"></tbody>
+            </table>
+          </div>
+          <div id="summary" class="summary hidden"></div>
+          <div id="timeline" class="timeline"></div>
+          <details id="command-log" class="command-log">
+            <summary>Nhật ký lệnh CLI <span id="command-count">0</span></summary>
+            <div id="command-list"></div>
+          </details>
+        </div>
+      </section>
+    </section>
+
+    <footer><span>Cisco Camera Port Tracer</span><span>SSH trực tiếp • Không AI • Không gửi dữ liệu ra Internet</span></footer>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

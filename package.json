@@ -1,0 +1,18 @@
+{
+  "name": "cisco-camera-port-tracer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trace a camera IP through Cisco switches using ARP, MAC table, CDP and LLDP.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  }
+}
