@@ -122,6 +122,76 @@ Compose mount credential dạng secret file vào container; entrypoint đọc fi
 
 Phiên đăng nhập dùng cookie `HttpOnly` + `SameSite=Strict`, hết hạn sau 8 giờ. Toàn bộ API (trừ `/api/health`, `/api/session`, `/api/login`) đều yêu cầu đăng nhập.
 
+## API tìm switch/port cho camera (tích hợp app ngoài)
+
+Endpoint `POST /api/camera-ports` trả về **JSON** (không phải NDJSON) để app quản lý camera gọi trực tiếp, tìm switch + port cho **1 hoặc nhiều camera** cùng lúc.
+
+**Xác thực:** dùng session đăng nhập (cookie) **hoặc** API key. Để dùng API key, đặt biến môi trường `ADMIN_API_KEY=<chuỗi ngẫu nhiên dài>` rồi gửi header `X-API-Key: <key>`. Khi chưa đặt `ADMIN_API_KEY`, chỉ session đăng nhập được dùng.
+
+**Request:**
+```json
+{
+  "cameraIps": ["10.0.63.125", "10.0.63.126"],
+  "coreHost": "10.0.254.1",
+  "maxHops": 8,
+  "timeoutMs": 15000
+}
+```
+
+**Response (HTTP 200):**
+```json
+{
+  "ok": true,
+  "total": 2,
+  "succeeded": 1,
+  "failed": 1,
+  "results": [
+    {
+      "cameraIp": "10.0.63.125",
+      "status": "success",
+      "switchName": "SW-CAM-07",
+      "switchIp": "10.0.254.107",
+      "port": "Gi1/0/18",
+      "mac": "581c.f87b.47c9",
+      "vlan": 63,
+      "hops": 2,
+      "path": "CORE [10.0.254.1] Po99 -> SW-CAM-07 [10.0.254.107] Gi1/0/18"
+    },
+    {
+      "cameraIp": "10.0.63.126",
+      "status": "error",
+      "error": "Không tìm thấy ARP cho 10.0.63.126 trên Core.",
+      "errorCode": "ARP_NOT_FOUND"
+    }
+  ]
+}
+```
+
+- `cameraIps`: 1 → 1000 IP.
+- `coreHost`: IP/hostname Core switch (bắt buộc).
+- Kết quả trả theo **đúng thứ tự** IP đầu vào; một camera lỗi không làm hỏng các camera còn lại.
+
+**Ví dụ bằng curl:**
+```sh
+curl -X POST http://127.0.0.1:3030/api/camera-ports \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: YOUR_ADMIN_API_KEY' \
+  -d '{"cameraIps":["10.0.63.125"],"coreHost":"10.0.254.1"}'
+```
+
+**Ví dụ bằng Python (requests):**
+```python
+import requests
+r = requests.post('http://127.0.0.1:3030/api/camera-ports',
+    headers={'X-API-Key': 'YOUR_ADMIN_API_KEY'},
+    json={'cameraIps': ['10.0.63.125', '10.0.63.126'], 'coreHost': '10.0.254.1'})
+for row in r.json()['results']:
+    if row['status'] == 'success':
+        print(row['cameraIp'], '->', row['switchName'], row['port'])
+    else:
+        print(row['cameraIp'], '-> LỖI:', row['error'])
+```
+
 ## Bảo mật
 
 - Server mặc định chỉ lắng nghe trên `127.0.0.1`, không mở ra LAN.

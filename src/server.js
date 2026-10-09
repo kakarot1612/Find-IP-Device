@@ -32,6 +32,7 @@ function sendJson(response, status, body) {
 // ---------------------------------------------------------------------------
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 if (!process.env.ADMIN_PASSWORD) {
   console.warn('[auth] ADMIN_PASSWORD chưa được thiết lập — đang dùng mặc định "admin". Hãy đổi qua setup-credentials.ps1 hoặc biến môi trường.');
 }
@@ -80,8 +81,15 @@ function isTrustedOrigin(request) {
   }
 }
 
+function hasValidApiKey(request) {
+  if (!ADMIN_API_KEY) return false;
+  const header = request.headers['x-api-key'];
+  if (!header) return false;
+  return safeEqual(sha256(header), sha256(ADMIN_API_KEY));
+}
+
 function guard(request, response) {
-  if (!getSession(request)) {
+  if (!getSession(request) && !hasValidApiKey(request)) {
     sendJson(response, 401, { error: 'Chưa đăng nhập.' });
     return false;
   }
@@ -311,6 +319,73 @@ async function handleConfigManager(request, response, action) {
   }
 }
 
+async function handleCameraPorts(request, response) {
+  let input;
+  try {
+    input = await readJson(request);
+  } catch (error) {
+    return sendJson(response, 400, { ok: false, error: error.message });
+  }
+
+  const cameraIps = Array.isArray(input.cameraIps)
+    ? input.cameraIps.map((value) => String(value).trim()).filter(Boolean)
+    : [];
+
+  if (cameraIps.length === 0) {
+    return sendJson(response, 400, { ok: false, error: 'Danh sách IP camera đang trống.' });
+  }
+  if (cameraIps.length > 1000) {
+    return sendJson(response, 400, { ok: false, error: 'Mỗi lần chỉ xử lý tối đa 1000 IP camera.' });
+  }
+
+  const coreHost = String(input.coreHost || '').trim();
+  if (!coreHost) {
+    return sendJson(response, 400, { ok: false, error: 'Chưa nhập IP hoặc hostname của Core switch.' });
+  }
+
+  const results = [];
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const cameraIp of cameraIps) {
+    try {
+      const result = await traceCamera(
+        {
+          cameraIp,
+          coreHost,
+          maxHops: input.maxHops,
+          timeoutMs: input.timeoutMs,
+        },
+        {
+          createSession: (options) => new CiscoSshSession(options),
+        },
+      );
+      results.push({
+        cameraIp,
+        status: 'success',
+        switchName: result.finalDevice,
+        switchIp: result.finalHost,
+        port: result.finalPort,
+        mac: result.cameraMac,
+        vlan: result.vlan,
+        hops: result.hops?.length ?? 0,
+        path: (result.hops || []).map((hop) => `${hop.device} [${hop.host}] ${hop.port}`).join(' -> '),
+      });
+      succeeded += 1;
+    } catch (error) {
+      results.push({
+        cameraIp,
+        status: 'error',
+        error: error.message || 'Có lỗi không xác định.',
+        errorCode: error.code || 'UNEXPECTED_ERROR',
+      });
+      failed += 1;
+    }
+  }
+
+  return sendJson(response, 200, { ok: true, total: cameraIps.length, succeeded, failed, results });
+}
+
 function serveStatic(request, response) {
   const requestPath = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
@@ -357,6 +432,7 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'POST' && request.url === '/api/config-manager/ping') return handleConfigManager(request, response, 'ping');
   if (request.method === 'POST' && request.url === '/api/config-manager/ssh-test') return handleConfigManager(request, response, 'ssh-test');
   if (request.method === 'POST' && request.url === '/api/config-manager/apply') return handleConfigManager(request, response, 'apply');
+  if (request.method === 'POST' && request.url === '/api/camera-ports') return handleCameraPorts(request, response);
   if (request.method === 'GET' || request.method === 'HEAD') return serveStatic(request, response);
   return sendJson(response, 405, { error: 'Method not allowed' });
 });
