@@ -168,7 +168,7 @@ Endpoint `POST /api/camera-ports` trả về **JSON** (không phải NDJSON) đ�
 ```
 
 - `cameraIps`: 1 → 1000 IP.
-- `coreHost`: IP/hostname Core switch (bắt buộc).
+- `coreHost`: IP/hostname Core switch (tùy chọn — mặc định `10.0.16.3`, đổi qua biến môi trường `CORE_HOST`).
 - Kết quả trả theo **đúng thứ tự** IP đầu vào; một camera lỗi không làm hỏng các camera còn lại.
 
 **Ví dụ bằng curl:**

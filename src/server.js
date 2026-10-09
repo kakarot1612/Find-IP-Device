@@ -338,11 +338,6 @@ async function handleCameraPorts(request, response) {
     return sendJson(response, 400, { ok: false, error: 'Mỗi lần chỉ xử lý tối đa 1000 IP camera.' });
   }
 
-  const coreHost = String(input.coreHost || '').trim();
-  if (!coreHost) {
-    return sendJson(response, 400, { ok: false, error: 'Chưa nhập IP hoặc hostname của Core switch.' });
-  }
-
   const results = [];
   let succeeded = 0;
   let failed = 0;
@@ -352,7 +347,7 @@ async function handleCameraPorts(request, response) {
       const result = await traceCamera(
         {
           cameraIp,
-          coreHost,
+          coreHost: input.coreHost,
           maxHops: input.maxHops,
           timeoutMs: input.timeoutMs,
         },

@@ -200,14 +200,13 @@ async function findNeighborOnPort(session, port, emit, hopNumber, host) {
 
 function validateTraceRequest(input) {
   const cameraIp = String(input.cameraIp || '').trim();
-  const coreHost = String(input.coreHost || '').trim();
+  const coreHost = String(input.coreHost || process.env.CORE_HOST || '10.0.16.3').trim();
   const username = String(input.username || process.env.CISCO_SSH_USERNAME || '').trim();
   const password = input.password || process.env.CISCO_SSH_PASSWORD || undefined;
   const privateKey = input.privateKey || process.env.CISCO_SSH_PRIVATE_KEY || undefined;
   const passphrase = input.passphrase || process.env.CISCO_SSH_KEY_PASSPHRASE || undefined;
   const enablePassword = input.enablePassword || process.env.CISCO_ENABLE_PASSWORD || undefined;
   if (net.isIP(cameraIp) !== 4) throw new TraceError('IP camera không hợp lệ.', 'INVALID_CAMERA_IP');
-  if (!coreHost) throw new TraceError('Chưa nhập IP hoặc hostname của Core switch.', 'MISSING_CORE');
   if (!username) throw new TraceError('Chưa nạp tài khoản SSH. Hãy chạy setup-credentials.ps1.', 'MISSING_USERNAME');
   if (!password && !privateKey) {
     throw new TraceError('Chưa nạp mật khẩu hoặc private key SSH. Hãy chạy setup-credentials.ps1.', 'MISSING_AUTH');
