@@ -112,6 +112,16 @@ docker compose up -d --build
 
 Compose mount credential dạng secret file vào container; entrypoint đọc file rồi chạy Node với user không đặc quyền. Docker secrets dạng file trên một máy chủ vẫn được lưu trên filesystem host, vì vậy cần giữ quyền truy cập thư mục chặt chẽ.
 
+## Đăng nhập quản trị
+
+Ứng dụng có màn hình đăng nhập quản trị (tài khoản admin dùng chung). Mặc định là `admin` / `admin` khi chưa cấu hình — hãy đổi ngay:
+
+- **Windows:** chạy `setup-credentials.ps1` để lưu `adminUsername` / `adminPassword` (mã hóa DPAPI), launcher `start-app.ps1` sẽ giải mã vào biến môi trường `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
+- **Docker:** đặt nội dung vào secret `secrets/admin_username` và `secrets/admin_password`.
+- **Thủ công:** đặt biến môi trường `ADMIN_USERNAME` / `ADMIN_PASSWORD` trước khi chạy `npm start`.
+
+Phiên đăng nhập dùng cookie `HttpOnly` + `SameSite=Strict`, hết hạn sau 8 giờ. Toàn bộ API (trừ `/api/health`, `/api/session`, `/api/login`) đều yêu cầu đăng nhập.
+
 ## Bảo mật
 
 - Server mặc định chỉ lắng nghe trên `127.0.0.1`, không mở ra LAN.

@@ -13,6 +13,8 @@ services:
       - ssh_private_key
       - ssh_key_passphrase
       - enable_password
+      - admin_username
+      - admin_password
     healthcheck:
       test:
         - CMD
@@ -35,3 +37,7 @@ secrets:
     file: ./secrets/ssh_key_passphrase
   enable_password:
     file: ./secrets/enable_password
+  admin_username:
+    file: ./secrets/admin_username
+  admin_password:
+    file: ./secrets/admin_password

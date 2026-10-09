@@ -3,6 +3,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { CiscoSshSession } = require('./ssh');
 const { TraceError, traceCamera } = require('./cisco');
 const { pingHost, sshTest, applyConfig, isValidIp } = require('./config-manager');
@@ -24,6 +25,109 @@ const MIME_TYPES = {
 function sendJson(response, status, body) {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(body));
+}
+
+// ---------------------------------------------------------------------------
+// Xác thực quản trị (phiên đăng nhập)
+// ---------------------------------------------------------------------------
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn('[auth] ADMIN_PASSWORD chưa được thiết lập — đang dùng mặc định "admin". Hãy đổi qua setup-credentials.ps1 hoặc biến môi trường.');
+}
+
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 giờ
+const sessions = new Map();
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest();
+}
+
+function safeEqual(left, right) {
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function parseCookies(request) {
+  const header = request.headers.cookie || '';
+  const result = {};
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    result[part.slice(0, index).trim()] = part.slice(index + 1).trim();
+  }
+  return result;
+}
+
+function getSession(request) {
+  const token = parseCookies(request).session;
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Date.now() > session.expiresAt) {
+    sessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+function isTrustedOrigin(request) {
+  const origin = request.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === request.headers.host;
+  } catch {
+    return false;
+  }
+}
+
+function guard(request, response) {
+  if (!getSession(request)) {
+    sendJson(response, 401, { error: 'Chưa đăng nhập.' });
+    return false;
+  }
+  if (request.method === 'POST' && !isTrustedOrigin(request)) {
+    sendJson(response, 403, { error: 'Origin không hợp lệ.' });
+    return false;
+  }
+  return true;
+}
+
+async function handleLogin(request, response) {
+  let input = {};
+  try {
+    input = await readJson(request);
+  } catch (error) {
+    return sendJson(response, 400, { error: error.message });
+  }
+  const username = String(input.username || '');
+  const password = String(input.password || '');
+  const userOk = safeEqual(sha256(username), sha256(ADMIN_USERNAME));
+  const passOk = safeEqual(sha256(password), sha256(ADMIN_PASSWORD));
+  if (!userOk || !passOk) {
+    return sendJson(response, 401, { error: 'Sai tên đăng nhập hoặc mật khẩu.' });
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { username: ADMIN_USERNAME, expiresAt: Date.now() + SESSION_TTL_MS });
+  response.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Set-Cookie': `session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_MS / 1000}`,
+  });
+  response.end(JSON.stringify({ ok: true, username: ADMIN_USERNAME }));
+}
+
+function handleLogout(request, response) {
+  const token = parseCookies(request).session;
+  if (token) sessions.delete(token);
+  response.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Set-Cookie': 'session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+  });
+  response.end(JSON.stringify({ ok: true }));
+}
+
+function handleSession(request, response) {
+  const session = getSession(request);
+  sendJson(response, 200, { authenticated: Boolean(session), username: session?.username || null });
 }
 
 async function readJson(request) {
@@ -221,15 +325,24 @@ function serveStatic(request, response) {
       'Content-Type': MIME_TYPES[path.extname(resolved)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
     });
     response.end(data);
   });
 }
 
 const server = http.createServer(async (request, response) => {
+  // Endpoint công khai (cần cho màn hình đăng nhập và healthcheck)
   if (request.method === 'GET' && request.url === '/api/health') {
     return sendJson(response, 200, { ok: true, service: 'Cisco Camera Port Tracer' });
   }
+  if (request.method === 'GET' && request.url === '/api/session') return handleSession(request, response);
+  if (request.method === 'POST' && request.url === '/api/login') return handleLogin(request, response);
+  if (request.method === 'POST' && request.url === '/api/logout') return handleLogout(request, response);
+
+  // Các API còn lại đều yêu cầu đăng nhập
+  if (request.url.startsWith('/api/') && !guard(request, response)) return;
+
   if (request.method === 'GET' && request.url === '/api/config') {
     return sendJson(response, 200, {
       credentialsLoaded: Boolean(

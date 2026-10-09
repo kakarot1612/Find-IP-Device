@@ -29,6 +29,12 @@ if ($credentials.enablePassword) {
 } else {
   Remove-Item Env:CISCO_ENABLE_PASSWORD -ErrorAction SilentlyContinue
 }
+if ($credentials.adminUsername) {
+  $env:ADMIN_USERNAME = Unprotect-Text -EncryptedValue $credentials.adminUsername
+}
+if ($credentials.adminPassword) {
+  $env:ADMIN_PASSWORD = Unprotect-Text -EncryptedValue $credentials.adminPassword
+}
 
 Set-Location -LiteralPath $projectRoot
 if (-not (Test-Path -LiteralPath 'node_modules\ssh2\package.json')) {

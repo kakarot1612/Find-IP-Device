@@ -40,12 +40,28 @@ try {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($enablePointer)
 }
 
+$adminUsername = Read-Host 'Ten dang nhap ADMIN cho man hinh dang nhap (Enter = admin)'
+if ([string]::IsNullOrWhiteSpace($adminUsername)) { $adminUsername = 'admin' }
+
+$adminPassword = Read-Host 'Mat khau ADMIN cho man hinh dang nhap' -AsSecureString
+$adminPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($adminPassword)
+try {
+  $plainAdminPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($adminPointer)
+} finally {
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($adminPointer)
+}
+if ([string]::IsNullOrEmpty($plainAdminPassword)) {
+  throw 'Mat khau ADMIN khong duoc de trong.'
+}
+
 New-Item -ItemType Directory -Path $configDirectory -Force | Out-Null
 $payload = [ordered]@{
   version = 1
   username = Protect-Text -Value $username.Trim()
   password = Protect-Text -Value $plainPassword
   enablePassword = if ([string]::IsNullOrEmpty($plainEnablePassword)) { $null } else { Protect-Text -Value $plainEnablePassword }
+  adminUsername = Protect-Text -Value $adminUsername.Trim()
+  adminPassword = Protect-Text -Value $plainAdminPassword
   protectedFor = "$env:USERDOMAIN\$env:USERNAME"
   updatedAt = (Get-Date).ToString('o')
 }
@@ -53,6 +69,7 @@ $payload | ConvertTo-Json | Set-Content -LiteralPath $credentialFile -Encoding u
 
 $plainPassword = $null
 $plainEnablePassword = $null
+$plainAdminPassword = $null
 Write-Host ''
 Write-Host "Da luu credential ma hoa: $credentialFile" -ForegroundColor Green
 Write-Host 'Chi Windows user hien tai tren may nay moi giai ma duoc.' -ForegroundColor Green

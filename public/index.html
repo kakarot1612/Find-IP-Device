@@ -3,17 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b1324">
+  <meta name="theme-color" content="#f5f5f7">
   <title>Cisco Camera Port Tracer</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div>
-  <div class="ambient ambient-two"></div>
-  <main class="shell">
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo">◆</div>
+        <h1>Cisco Camera Port Tracer</h1>
+        <p>Đăng nhập để quản lý ứng dụng</p>
+      </div>
+      <form id="login-form" class="login-form" autocomplete="on">
+        <label class="field"><span>Tên đăng nhập</span><input id="login-username" autocomplete="username" spellcheck="false" required></label>
+        <label class="field"><span>Mật khẩu</span><input id="login-password" type="password" autocomplete="current-password" required></label>
+        <p id="login-error" class="login-error" role="alert"></p>
+        <button type="submit" class="primary-button" id="login-button"><span class="button-text">Đăng nhập</span><span class="button-loader"></span></button>
+      </form>
+    </div>
+  </div>
+  <div id="app-root">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="shell">
     <nav class="app-nav">
-      <button type="button" class="nav-tab active" data-view="trace">Tìm port</button>
-      <button type="button" class="nav-tab" data-view="config">Config Manager</button>
+      <div class="nav-tabs">
+        <button type="button" class="nav-tab active" data-view="trace">Tìm port</button>
+        <button type="button" class="nav-tab" data-view="config">Config Manager</button>
+      </div>
+      <div class="nav-right">
+        <span id="nav-user" class="nav-user"></span>
+        <button type="button" class="logout-button" id="logout-button">Đăng xuất</button>
+      </div>
     </nav>
     <div id="view-trace">
       <header class="hero">
@@ -180,6 +202,7 @@
 
     <footer><span>Cisco Camera Port Tracer</span><span>SSH trực tiếp • Không AI • Không gửi dữ liệu ra Internet</span></footer>
   </main>
+  <script src="/auth.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/config-manager.js" defer></script>
 
@@ -206,6 +229,7 @@
         <button type="button" class="ghost-button" id="cm-modal-cancel">Hủy</button>
       </div>
     </div>
+  </div>
   </div>
 </body>
 </html>
