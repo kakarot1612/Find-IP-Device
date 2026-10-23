@@ -192,6 +192,61 @@ for row in r.json()['results']:
         print(row['cameraIp'], '-> LỖI:', row['error'])
 ```
 
+## API đẩy lệnh config cho thiết bị (app C# / IT)
+
+Endpoint `POST /api/exec` để app IT (C#) đẩy lệnh CLI tới thiết bị Cisco (VD WLC 9800) bằng credential AD của từng IT. Tự phát hiện lỗi CLI (trùng username, invalid input…).
+
+**Xác thực:** gửi header `X-API-Key` (xem mục trên).
+
+**Request:**
+```json
+{
+  "deviceIp": "10.0.63.210",
+  "username": "it.user",
+  "password": "mat-khau-AD",
+  "secret": "",
+  "deviceType": "cisco_xe",
+  "commands": [
+    "username 34fe7734f7c7 mac aaa attribute list MAC-Staff wlan-profile-name BPVN_STAFF description WHSophie"
+  ],
+  "save": true
+}
+```
+
+**Response (HTTP 200):**
+```json
+{
+  "ok": true,
+  "message": "Áp dụng OK (1 lệnh)",
+  "deviceIp": "10.0.63.210",
+  "results": [
+    { "command": "username 34fe7734f7c7 ...", "ok": true, "output": "", "error": null }
+  ]
+}
+```
+
+Khi trùng username, `ok` = `false` và `error` chứa nội dung lỗi (VD `% A local user with this name already exists`).
+
+**Ví dụ C# (.NET):**
+```csharp
+using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("X-API-Key", "YOUR_ADMIN_API_KEY");
+var payload = new {
+    deviceIp = "10.0.63.210",
+    username = "it.user",
+    password = "mat-khau-AD",
+    deviceType = "cisco_xe",
+    commands = new[] { "username 34fe7734f7c7 mac aaa attribute list MAC-Staff wlan-profile-name BPVN_STAFF description WHSophie" }
+};
+var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+var res = await client.PostAsync("http://10.0.60.250:3030/api/exec", content);
+Console.WriteLine(await res.Content.ReadAsStringAsync());
+```
+
+- `deviceType`: `cisco_xe` cho WLC 9800, `cisco_ios` / `cisco_nxos` cho switch.
+- `save`: `true` = tự chạy `write memory` sau khi xong lệnh; đặt `false` nếu không muốn lưu.
+- Lệnh được chạy trong chế độ `configure terminal` (tuần tự), sau đó `end`.
+
 ## Bảo mật
 
 - Server mặc định chỉ lắng nghe trên `127.0.0.1`, không mở ra LAN.

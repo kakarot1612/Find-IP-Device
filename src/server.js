@@ -381,6 +381,61 @@ async function handleCameraPorts(request, response) {
   return sendJson(response, 200, { ok: true, total: cameraIps.length, succeeded, failed, results });
 }
 
+async function handleExec(request, response) {
+  let input;
+  try {
+    input = await readJson(request);
+  } catch (error) {
+    return sendJson(response, 400, { ok: false, error: error.message });
+  }
+
+  const deviceIp = String(input.deviceIp || '').trim();
+  const username = String(input.username || '').trim();
+  const password = String(input.password || '');
+  const deviceType = String(input.deviceType || 'cisco_xe').trim();
+  const commands = Array.isArray(input.commands)
+    ? input.commands.map((value) => String(value).trim()).filter(Boolean)
+    : [];
+
+  if (!isValidIp(deviceIp)) {
+    return sendJson(response, 400, { ok: false, error: 'IP thiết bị không hợp lệ.' });
+  }
+  if (!username) {
+    return sendJson(response, 400, { ok: false, error: 'Thiếu username SSH.' });
+  }
+  if (commands.length === 0) {
+    return sendJson(response, 400, { ok: false, error: 'Danh sách lệnh đang trống.' });
+  }
+
+  const switchInfo = {
+    ip: deviceIp,
+    username,
+    password: password || undefined,
+    secret: input.secret || undefined,
+    device_type: deviceType,
+  };
+
+  const result = await applyConfig(
+    switchInfo,
+    commands,
+    (options) => new CiscoSshSession(options),
+    null,
+    { save: input.save !== false },
+  );
+
+  return sendJson(response, 200, {
+    ok: result.ok,
+    message: result.message,
+    deviceIp,
+    results: (result.output || []).map((entry) => ({
+      command: entry.command,
+      ok: entry.ok !== false,
+      output: entry.output,
+      error: entry.error || null,
+    })),
+  });
+}
+
 function serveStatic(request, response) {
   const requestPath = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
@@ -428,6 +483,7 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'POST' && request.url === '/api/config-manager/ssh-test') return handleConfigManager(request, response, 'ssh-test');
   if (request.method === 'POST' && request.url === '/api/config-manager/apply') return handleConfigManager(request, response, 'apply');
   if (request.method === 'POST' && request.url === '/api/camera-ports') return handleCameraPorts(request, response);
+  if (request.method === 'POST' && request.url === '/api/exec') return handleExec(request, response);
   if (request.method === 'GET' || request.method === 'HEAD') return serveStatic(request, response);
   return sendJson(response, 405, { error: 'Method not allowed' });
 });

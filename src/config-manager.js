@@ -72,26 +72,51 @@ async function sshTest(switchInfo, createSession) {
   }
 }
 
-async function applyConfig(switchInfo, commands, createSession, emit) {
+function detectCliErrors(output) {
+  const lines = String(output || '').split(/\r?\n/).map((line) => line.trim());
+  return lines.filter((line) => {
+    if (!line) return false;
+    if (/already\s+exists|already\s+in\s+use|name\s+exists/i.test(line)) return true;
+    if (/invalid\s+input/i.test(line)) return true;
+    if (/incomplete\s+command/i.test(line)) return true;
+    if (/ambiguous\s+command/i.test(line)) return true;
+    if (/^%.*(error|invalid|incomplete|ambiguous|already|failed|denied|not\s+found)/i.test(line)) return true;
+    return false;
+  });
+}
+
+async function applyConfig(switchInfo, commands, createSession, emit, options = {}) {
   if (switchInfo.device_type === 'cisco_ios_telnet') {
     return { ok: false, message: 'Telnet chưa được hỗ trợ ở phiên bản web (chỉ SSH).' };
   }
+  const shouldSave = options.save !== false;
   const session = createSession(toSessionOptions(switchInfo));
   const runLog = [];
-  const record = (command, output) => {
-    runLog.push({ command, output });
-    if (emit) emit({ type: 'command', command, output });
+  const record = (command, output, ok = true, error = null) => {
+    runLog.push({ command, output, ok, error });
+    if (emit) emit({ type: 'command', command, output, ok, error });
   };
+  const failed = [];
   try {
     await session.connect();
     await session.run('configure terminal');
     for (const command of commands) {
       const output = await session.run(command);
-      record(command, output);
+      const errors = detectCliErrors(output);
+      const ok = errors.length === 0;
+      const error = ok ? null : errors[0];
+      record(command, output, ok, error);
+      if (!ok) failed.push({ command, error });
     }
     await session.run('end');
-    const save = saveCommand(switchInfo.device_type);
-    record(save, await session.run(save));
+    if (shouldSave) {
+      const save = saveCommand(switchInfo.device_type);
+      record(save, await session.run(save));
+    }
+    if (failed.length) {
+      const first = failed[0];
+      return { ok: false, message: `Lệnh lỗi: ${first.command} — ${first.error}`, output: runLog, failed };
+    }
     return { ok: true, message: `Áp dụng OK (${commands.length} lệnh)`, output: runLog };
   } catch (error) {
     return { ok: false, message: `Áp dụng lỗi: ${error.message}`, output: runLog };
@@ -107,6 +132,7 @@ module.exports = {
   pingHost,
   sshTest,
   applyConfig,
+  detectCliErrors,
   toSessionOptions,
   saveCommand,
 };

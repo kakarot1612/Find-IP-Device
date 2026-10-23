@@ -13,6 +13,7 @@ const {
   validateTraceRequest,
 } = require('../src/cisco');
 const { LEGACY_ALGORITHMS } = require('../src/ssh');
+const { detectCliErrors } = require('../src/config-manager');
 
 test('formatMac chuẩn hóa các định dạng MAC phổ biến', () => {
   assert.equal(formatMac('58:1c:f8:7b:47:c9'), '581c.f87b.47c9');
@@ -23,6 +24,12 @@ test('formatMac chuẩn hóa các định dạng MAC phổ biến', () => {
 test('SSH legacy fallback có KEX Cisco đời cũ', () => {
   assert.ok(LEGACY_ALGORITHMS.kex.append.includes('diffie-hellman-group14-sha1'));
   assert.ok(LEGACY_ALGORITHMS.kex.append.includes('diffie-hellman-group1-sha1'));
+});
+
+test('detectCliErrors nhận diện lỗi trùng username và invalid input', () => {
+  assert.ok(detectCliErrors('% A local user with this name already exists').length > 0);
+  assert.ok(detectCliErrors('% Invalid input detected at \'^\' marker.').length > 0);
+  assert.ok(detectCliErrors('username 34fe7734f7c7 mac ... description WHSophie').length === 0);
 });
 
 test('credential môi trường được dùng khi UI không gửi tài khoản', () => {
