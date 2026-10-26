@@ -3,7 +3,7 @@
 const { execFile } = require('node:child_process');
 const net = require('node:net');
 
-const DEVICE_TYPES = ['cisco_ios', 'cisco_ios_telnet', 'cisco_nxos', 'cisco_xe'];
+const DEVICE_TYPES = ['cisco_ios', 'cisco_ios_telnet', 'cisco_nxos', 'cisco_xe', 'cisco_aireos'];
 const DEFAULT_TIMEOUT_MS = 20000;
 
 function isValidIp(value) {
@@ -54,7 +54,13 @@ function toSessionOptions(switchInfo) {
 }
 
 function saveCommand(deviceType) {
-  return deviceType === 'cisco_nxos' ? 'copy running-config startup-config' : 'write memory';
+  if (deviceType === 'cisco_nxos') return 'copy running-config startup-config';
+  if (deviceType === 'cisco_aireos') return 'save config';
+  return 'write memory';
+}
+
+function isAireos(deviceType) {
+  return deviceType === 'cisco_aireos';
 }
 
 async function sshTest(switchInfo, createSession) {
@@ -77,6 +83,7 @@ function detectCliErrors(output) {
   return lines.filter((line) => {
     if (!line) return false;
     if (/already\s+exists|already\s+in\s+use|name\s+exists/i.test(line)) return true;
+    if (/duplicate\s+mac\s+filter|mac\s+filter\s+already|is\s+already\s+(added|configured|in\s+the\s+list)/i.test(line)) return true;
     if (/invalid\s+input/i.test(line)) return true;
     if (/incomplete\s+command/i.test(line)) return true;
     if (/ambiguous\s+command/i.test(line)) return true;
@@ -99,7 +106,9 @@ async function applyConfig(switchInfo, commands, createSession, emit, options = 
   const failed = [];
   try {
     await session.connect();
-    await session.run('configure terminal');
+    if (!isAireos(switchInfo.device_type)) {
+      await session.run('configure terminal');
+    }
     for (const command of commands) {
       const output = await session.run(command);
       const errors = detectCliErrors(output);
@@ -108,7 +117,9 @@ async function applyConfig(switchInfo, commands, createSession, emit, options = 
       record(command, output, ok, error);
       if (!ok) failed.push({ command, error });
     }
-    await session.run('end');
+    if (!isAireos(switchInfo.device_type)) {
+      await session.run('end');
+    }
     if (shouldSave) {
       const save = saveCommand(switchInfo.device_type);
       record(save, await session.run(save));
@@ -135,4 +146,5 @@ module.exports = {
   detectCliErrors,
   toSessionOptions,
   saveCommand,
+  isAireos,
 };

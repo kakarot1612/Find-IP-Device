@@ -243,9 +243,9 @@ var res = await client.PostAsync("http://10.0.60.250:3030/api/exec", content);
 Console.WriteLine(await res.Content.ReadAsStringAsync());
 ```
 
-- `deviceType`: `cisco_xe` cho WLC 9800, `cisco_ios` / `cisco_nxos` cho switch.
-- `save`: `true` = tự chạy `write memory` sau khi xong lệnh; đặt `false` nếu không muốn lưu.
-- Lệnh được chạy trong chế độ `configure terminal` (tuần tự), sau đó `end`.
+- `deviceType`: `cisco_xe` cho WLC 9800, `cisco_ios` / `cisco_nxos` cho switch, `cisco_aireos` cho WLC 5500 (AireOS — gõ lệnh trực tiếp, lưu bằng `save config`).
+- `save`: `true` = tự lưu cấu hình sau khi xong lệnh (IOS-XE: `write memory`, AireOS: `save config`); đặt `false` nếu không muốn lưu.
+- Với `cisco_aireos`, lệnh được chạy trực tiếp ở prompt (không `configure terminal`). Ví dụ lệnh MAC filter WLC 5500: `config macfilter add <MAC> 5 dyn interface wifi staff <description>`.
 
 ## Bảo mật
 

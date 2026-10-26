@@ -32,6 +32,33 @@ test('detectCliErrors nhận diện lỗi trùng username và invalid input', ()
   assert.ok(detectCliErrors('username 34fe7734f7c7 mac ... description WHSophie').length === 0);
 });
 
+test('detectCliErrors nhận diện lỗi trùng MAC filter trên AireOS', () => {
+  assert.ok(detectCliErrors('Error: MAC filter already added').length > 0);
+  assert.ok(detectCliErrors('Duplicate MAC filter found').length > 0);
+});
+
+test('applyConfig với cisco_aireos không chạy configure terminal mà chạy lệnh trực tiếp', async () => {
+  const { applyConfig } = require('../src/config-manager');
+  const executed = [];
+  const createSession = () => ({
+    prompt: '(Cisco Controller) >',
+    async connect() {},
+    async run(command) { executed.push(command); return ''; },
+    async close() {},
+  });
+  const result = await applyConfig(
+    { ip: '10.0.62.254', username: 'admin', device_type: 'cisco_aireos' },
+    ['config macfilter add 34fe7734f7c7 5 dyn interface wifi staff WHSophie'],
+    createSession,
+    null,
+  );
+  assert.equal(result.ok, true);
+  assert.ok(!executed.includes('configure terminal'));
+  assert.ok(!executed.includes('end'));
+  assert.ok(executed.includes('save config'));
+  assert.ok(executed.includes('config macfilter add 34fe7734f7c7 5 dyn interface wifi staff WHSophie'));
+});
+
 test('credential môi trường được dùng khi UI không gửi tài khoản', () => {
   const previousUsername = process.env.CISCO_SSH_USERNAME;
   const previousPassword = process.env.CISCO_SSH_PASSWORD;
