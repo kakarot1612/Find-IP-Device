@@ -58,10 +58,20 @@ class CiscoSshSession {
       };
 
       this.client
-        .on('ready', finish(resolve))
-        .on('error', finish(reject))
+        .on('ready', (value) => { if (process.env.DEBUG_SSH) console.error('[ssh] transport ready'); finish(resolve)(value); })
+        .on('error', (value) => { if (process.env.DEBUG_SSH) console.error('[ssh] transport error:', value && value.message); finish(reject)(value); })
         .on('keyboard-interactive', (_name, _instructions, _language, prompts, done) => {
-          done(prompts.map(() => this.options.password || ''));
+          if (process.env.DEBUG_SSH) {
+            console.error('[ssh] keyboard-interactive:', JSON.stringify({
+              name: _name, instructions: _instructions, prompts: prompts.map((p) => p.prompt),
+            }));
+          }
+          const answers = prompts.map((prompt) => {
+            const label = String(prompt && prompt.prompt ? prompt.prompt : '').toLowerCase();
+            if (/(user|login|name)/.test(label)) return this.options.username || '';
+            return this.options.password || '';
+          });
+          done(answers);
         })
         .connect({
           host: this.options.host,
@@ -157,6 +167,7 @@ class CiscoSshSession {
 
   handleData(chunk) {
     let text = cleanTerminalText(chunk.toString('utf8'));
+    if (process.env.DEBUG_SSH) console.error('[ssh] chunk:', JSON.stringify(text));
     if (/--More--|<--- More --->/i.test(text)) {
       text = text.replace(/--More--|<--- More --->/gi, '');
       this.stream?.write(' ');
