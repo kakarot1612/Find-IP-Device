@@ -91,8 +91,35 @@ class CiscoSshSession {
       });
     });
 
-    const initial = await this.waitFor((text) => this.findPrompt(text), this.options.timeoutMs);
-    this.prompt = this.findPrompt(initial);
+    // Với AireOS (WLC 5500...), shell thường hỏi lại username/password trong
+    // chính phiên shell (2 bước, bước đầu có thể chậm ~5s). Xử lý tuần tự.
+    const aireos = this.options.hostUsernamePrompt === true;
+    const stepTimeout = Math.max(this.options.timeoutMs, 60000);
+
+    const initial = await this.waitFor(
+      (text) => this.findPrompt(text) || this.findLoginPrompt(text),
+      stepTimeout,
+    );
+
+    if (this.findLoginPrompt(initial) && !this.findPrompt(initial)) {
+      // Bước 1: username (không cần password)
+      this.buffer = '';
+      this.stream.write(`${this.options.username}\n`);
+      const pwdPrompt = await this.waitFor(
+        (text) => (/password\s*:/i.test(text) ? 'password' : this.findPrompt(text)),
+        stepTimeout,
+      );
+      if (pwdPrompt === 'password') {
+        this.buffer = '';
+        this.stream.write(`${this.options.password || ''}\n`);
+        const afterPwd = await this.waitFor((text) => this.findPrompt(text), stepTimeout);
+        this.prompt = this.findPrompt(afterPwd);
+      } else {
+        this.prompt = this.findPrompt(pwdPrompt);
+      }
+    } else {
+      this.prompt = this.findPrompt(initial);
+    }
 
     if (this.prompt?.endsWith('>') && this.options.enablePassword) {
       this.buffer = '';
@@ -109,12 +136,22 @@ class CiscoSshSession {
       }
     }
 
+    // AireOS không có lệnh terminal length/width
+    if (aireos) return;
+
     await this.run('terminal length 0');
     await this.run('terminal width 220');
   }
 
+  findLoginPrompt(text) {
+    const clean = cleanTerminalText(text);
+    return /(?:login\s*as\s*:|username\s*:|user\s*name\s*:|user\s*:|^\s*login\s*:)\s*$/im.test(clean)
+      || /^\s*login\s*as\s*$/im.test(clean);
+  }
+
   findPrompt(text) {
-    const match = cleanTerminalText(text).match(/(?:^|\n)([^\n]+[>#])\s*$/);
+    const clean = cleanTerminalText(text);
+    const match = clean.match(/(?:^|\n)([^\n]+[>#])\s*$/) || clean.match(/(\([^\n]*\)\s*>)\s*$/);
     return match?.[1]?.trim() || null;
   }
 

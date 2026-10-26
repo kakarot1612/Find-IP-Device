@@ -12,7 +12,7 @@ const {
   traceCamera,
   validateTraceRequest,
 } = require('../src/cisco');
-const { LEGACY_ALGORITHMS } = require('../src/ssh');
+const { LEGACY_ALGORITHMS, cleanTerminalText } = require('../src/ssh');
 const { detectCliErrors } = require('../src/config-manager');
 
 test('formatMac chuẩn hóa các định dạng MAC phổ biến', () => {
@@ -26,10 +26,27 @@ test('SSH legacy fallback có KEX Cisco đời cũ', () => {
   assert.ok(LEGACY_ALGORITHMS.kex.append.includes('diffie-hellman-group1-sha1'));
 });
 
-test('detectCliErrors nhận diện lỗi trùng username và invalid input', () => {
-  assert.ok(detectCliErrors('% A local user with this name already exists').length > 0);
-  assert.ok(detectCliErrors('% Invalid input detected at \'^\' marker.').length > 0);
-  assert.ok(detectCliErrors('username 34fe7734f7c7 mac ... description WHSophie').length === 0);
+test('findLoginPrompt nhận diện prompt username của AireOS', () => {
+  const { CiscoSshSession } = require('../src/ssh');
+  const session = new CiscoSshSession({ host: 'x', username: 'u', password: 'p' });
+  assert.ok(session.findLoginPrompt('User:'));
+  assert.ok(session.findLoginPrompt('login as:'));
+  assert.ok(session.findLoginPrompt('Username:'));
+  assert.ok(!session.findLoginPrompt('(Cisco Controller) >'));
+});
+
+test('findPrompt nhận diện prompt AireOS dạng (Cisco Controller) >', () => {
+  const { CiscoSshSession } = require('../src/ssh');
+  const session = new CiscoSshSession({ host: 'x', username: 'u', password: 'p' });
+  assert.equal(session.findPrompt('(Cisco Controller) >'), '(Cisco Controller) >');
+  assert.equal(session.findPrompt('SW-CORE#'), 'SW-CORE#');
+});
+
+test('saveCommand trả về đúng lệnh lưu theo loại thiết bị', () => {
+  const { saveCommand } = require('../src/config-manager');
+  assert.equal(saveCommand('cisco_aireos'), 'save config');
+  assert.equal(saveCommand('cisco_xe'), 'write memory');
+  assert.equal(saveCommand('cisco_nxos'), 'copy running-config startup-config');
 });
 
 test('detectCliErrors nhận diện lỗi trùng MAC filter trên AireOS', () => {

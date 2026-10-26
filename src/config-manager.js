@@ -50,6 +50,7 @@ function toSessionOptions(switchInfo) {
     password: switchInfo.password || undefined,
     enablePassword: switchInfo.secret || undefined,
     timeoutMs: DEFAULT_TIMEOUT_MS,
+    hostUsernamePrompt: isAireos(switchInfo.device_type),
   };
 }
 
