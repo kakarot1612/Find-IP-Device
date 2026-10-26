@@ -146,8 +146,11 @@ class CiscoSshSession {
       }
     }
 
-    // AireOS không có lệnh terminal length/width
-    if (aireos) return;
+    // AireOS không có lệnh terminal length/width; tắt paging thay thế
+    if (aireos) {
+      await this.run('config paging disable');
+      return;
+    }
 
     await this.run('terminal length 0');
     await this.run('terminal width 220');
@@ -171,6 +174,9 @@ class CiscoSshSession {
     if (/--More--|<--- More --->/i.test(text)) {
       text = text.replace(/--More--|<--- More --->/gi, '');
       this.stream?.write(' ');
+    } else if (/\(y\/n\)/i.test(text)) {
+      text = text.replace(/\(y\/n\)/gi, '');
+      this.stream?.write('y\n');
     }
     this.buffer += text;
     if (this.waiter) {
