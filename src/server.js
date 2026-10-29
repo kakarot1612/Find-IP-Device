@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { CiscoSshSession } = require('./ssh');
 const { TraceError, traceCamera } = require('./cisco');
 const { pingHost, sshTest, applyConfig, isValidIp } = require('./config-manager');
+const { addMacToRadius, normalizeMac } = require('./radius');
 
 const PORT = Number(process.env.PORT) || 3030;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -436,6 +437,31 @@ async function handleExec(request, response) {
   });
 }
 
+async function handleRadiusAddMac(request, response) {
+  let input;
+  try {
+    input = await readJson(request);
+  } catch (error) {
+    return sendJson(response, 400, { ok: false, error: error.message });
+  }
+
+  const mac = String(input.mac || '').trim();
+  const deviceName = String(input.deviceName || input.firstname || '').trim();
+  const group = String(input.group || input.groupname || 'VLAN16_QR').trim();
+  const department = String(input.department || '').trim();
+  const notes = String(input.notes || '').trim();
+  const createdBy = String(input.createdBy || input.username || 'API_Gateway').trim();
+
+  if (!normalizeMac(mac)) {
+    return sendJson(response, 400, { ok: false, code: 'INVALID_MAC', error: 'MAC không hợp lệ (cần 12 ký tự hex).' });
+  }
+
+  const result = await addMacToRadius({ mac, deviceName, group, department, notes, createdBy });
+
+  if (result.ok) return sendJson(response, 200, result);
+  return sendJson(response, 200, result); // Cả thành công lẫn lỗi nghiệp vụ đều trả 200 + code (trừ lỗi input đã 400 ở trên)
+}
+
 function serveStatic(request, response) {
   const requestPath = new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
@@ -484,6 +510,7 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'POST' && request.url === '/api/config-manager/apply') return handleConfigManager(request, response, 'apply');
   if (request.method === 'POST' && request.url === '/api/camera-ports') return handleCameraPorts(request, response);
   if (request.method === 'POST' && request.url === '/api/exec') return handleExec(request, response);
+  if (request.method === 'POST' && request.url === '/api/radius/mac') return handleRadiusAddMac(request, response);
   if (request.method === 'GET' || request.method === 'HEAD') return serveStatic(request, response);
   return sendJson(response, 405, { error: 'Method not allowed' });
 });

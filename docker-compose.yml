@@ -5,6 +5,14 @@ services:
     restart: unless-stopped
     init: true
     read_only: true
+    environment:
+      - ADMIN_API_KEY=change-me
+      # RADIUS DB cho /api/radius/mac (thêm MAC vào DaloRADIUS)
+      - RADIUS_DB_HOST=10.x.x.x
+      - RADIUS_DB_PORT=3306
+      - RADIUS_DB_USER=radius
+      - RADIUS_DB_PASSWORD=change-me
+      - RADIUS_DB_NAME=radiusdb
     ports:
       - "127.0.0.1:3030:3030"
     secrets:

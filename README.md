@@ -247,6 +247,51 @@ Console.WriteLine(await res.Content.ReadAsStringAsync());
 - `save`: `true` = tự lưu cấu hình sau khi xong lệnh (IOS-XE: `write memory`, AireOS: `save config`); đặt `false` nếu không muốn lưu.
 - Với `cisco_aireos`, lệnh được chạy trực tiếp ở prompt (không `configure terminal`). Ví dụ lệnh MAC filter WLC 5500: `config macfilter add <MAC> 5 dyn interface wifi staff <description>`.
 
+## API thêm MAC vào DaloRADIUS/FreeRADIUS (hệ WiFi PDA)
+
+Endpoint `POST /api/radius/mac` để app IT thêm 1 MAC vào FreeRADIUS (MAC authentication) — ghi trực tiếp vào database `radcheck` + `radusergroup` + `userinfo`.
+
+**Cấu hình kết nối DB** (biến môi trường, dùng trong Docker `environment`):
+```
+RADIUS_DB_HOST=10.x.x.x
+RADIUS_DB_PORT=3306
+RADIUS_DB_USER=radius
+RADIUS_DB_PASSWORD=****
+RADIUS_DB_NAME=radiusdb
+```
+
+**Xác thực:** gửi header `X-API-Key`.
+
+**Request:**
+```json
+{
+  "mac": "c8:12:0b:d9:c0:09",
+  "deviceName": "TV-DF dai 02",
+  "group": "VLAN16_QR",
+  "department": "",
+  "notes": "Ticket #1024",
+  "createdBy": "API_Gateway"
+}
+```
+
+**Response:**
+```json
+// Thành công
+{ "ok": true, "code": "CREATED", "message": "Đã thêm MAC c8120bd9c009 vào RADIUS.", "mac": "c8120bd9c009", "group": "VLAN16_QR" }
+
+// Trùng MAC
+{ "ok": false, "code": "ALREADY_EXISTS", "message": "MAC c8120bd9c009 đã tồn tại trong RADIUS." }
+
+// MAC sai định dạng (HTTP 400)
+{ "ok": false, "code": "INVALID_MAC", "error": "..." }
+```
+
+- MAC được chuẩn hóa về 12 ký tự hex liền (`aabbccddeeff`), chấp nhận cả `aa:bb:cc:dd:ee:ff` / `aa-bb-...`.
+- Giao dịch **nguyên tử**: ghi cả 3 bảng, nếu lỗi giữa chừng thì rollback.
+- `group` mặc định `VLAN16_QR`.
+
+**Xử lý hay dùng trong app C#:** xét `code == "ALREADY_EXISTS"` để báo "MAC đã tồn tại".
+
 ## Bảo mật
 
 - Server mặc định chỉ lắng nghe trên `127.0.0.1`, không mở ra LAN.
