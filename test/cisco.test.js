@@ -14,13 +14,19 @@ const {
 } = require('../src/cisco');
 const { LEGACY_ALGORITHMS, cleanTerminalText } = require('../src/ssh');
 const { detectCliErrors } = require('../src/config-manager');
-const { normalizeMac } = require('../src/radius');
+const { normalizeMac, macVariants } = require('../src/radius');
 
 test('normalizeMac chuẩn hóa MAC RADIUS về 12 ký tự hex liền', () => {
   assert.equal(normalizeMac('c8:12:0b:d9:c0:09'), 'c8120bd9c009');
   assert.equal(normalizeMac('C8-12-0B-D9-C0-09'), 'c8120bd9c009');
   assert.equal(normalizeMac('c8120bd9c009'), 'c8120bd9c009');
   assert.equal(normalizeMac('invalid'), null);
+});
+
+test('macVariants sinh cả 2 định dạng (liền + dấu :) từ bất kỳ input', () => {
+  assert.deepEqual(macVariants('c8:12:0b:d9:c0:09'), { compact: 'c8120bd9c009', colon: 'c8:12:0b:d9:c0:09' });
+  assert.deepEqual(macVariants('c8120bd9c009'), { compact: 'c8120bd9c009', colon: 'c8:12:0b:d9:c0:09' });
+  assert.equal(macVariants('invalid'), null);
 });
 
 test('formatMac chuẩn hóa các định dạng MAC phổ biến', () => {

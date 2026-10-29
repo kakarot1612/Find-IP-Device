@@ -286,7 +286,8 @@ RADIUS_DB_NAME=radiusdb
 { "ok": false, "code": "INVALID_MAC", "error": "..." }
 ```
 
-- MAC được chuẩn hóa về 12 ký tự hex liền (`aabbccddeeff`), chấp nhận cả `aa:bb:cc:dd:ee:ff` / `aa-bb-...`.
+- MAC nhận vào **cả 2 định dạng** `aa:bb:cc:dd:ee:ff` hoặc `aabbccddeeff`; hệ thống tự thêm **cả 2 bản ghi** vào `radcheck` và `radusergroup` (liền + có dấu `:`).
+- `userinfo` chỉ ghi 1 bản ghi (dùng dạng liền làm key hiển thị).
 - Giao dịch **nguyên tử**: ghi cả 3 bảng, nếu lỗi giữa chừng thì rollback.
 - `group` mặc định `VLAN16_QR`.
 

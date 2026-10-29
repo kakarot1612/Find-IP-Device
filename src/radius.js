@@ -27,6 +27,18 @@ function normalizeMac(value) {
   return compact;
 }
 
+/** Chuyển MAC liền (aabbccddeeff) sang dạng có dấu ':' (aa:bb:cc:dd:ee:ff). */
+function colonMac(compact) {
+  return compact.match(/.{2}/g)?.join(':') || null;
+}
+
+/** Sinh ra cả 2 định dạng username: liền và có dấu ':'. */
+function macVariants(value) {
+  const compact = normalizeMac(value);
+  if (!compact) return null;
+  return { compact, colon: colonMac(compact) };
+}
+
 /**
  * Thêm một MAC vào FreeRADIUS/DaloRADIUS (MAC authentication).
  * - radcheck: username = MAC, Cleartext-Password = MAC.
@@ -35,10 +47,11 @@ function normalizeMac(value) {
  * Giao dịch nguyên tử; nếu MAC đã tồn tại, trả lỗi already_exists.
  */
 async function addMacToRadius({ mac, deviceName, group, department, notes, createdBy }) {
-  const username = normalizeMac(mac);
-  if (!username) {
+  const variants = macVariants(mac);
+  if (!variants) {
     return { ok: false, code: 'INVALID_MAC', message: 'MAC không hợp lệ (cần 12 ký tự hex).' };
   }
+  const usernames = [variants.compact, variants.colon];
   const groupName = String(group || 'VLAN16_QR').trim();
   const createdByValue = String(createdBy || 'API_Gateway').trim() || 'API_Gateway';
 
@@ -53,33 +66,37 @@ async function addMacToRadius({ mac, deviceName, group, department, notes, creat
   try {
     await connection.beginTransaction();
 
-    // Kiểm tra trùng trong radcheck
+    // Kiểm tra trùng: nếu BẤT KỲ định dạng nào đã tồn tại thì báo trùng
     const [existing] = await connection.query(
-      'SELECT username FROM radcheck WHERE username = ? LIMIT 1',
-      [username],
+      'SELECT username FROM radcheck WHERE username IN (?, ?) LIMIT 1',
+      usernames,
     );
     if (Array.isArray(existing) && existing.length > 0) {
       await connection.rollback();
-      return { ok: false, code: 'ALREADY_EXISTS', message: `MAC ${username} đã tồn tại trong RADIUS.` };
+      return { ok: false, code: 'ALREADY_EXISTS', message: `MAC ${variants.compact} đã tồn tại trong RADIUS.` };
     }
 
-    // 1. radcheck
-    await connection.query(
-      'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
-      [username, 'Cleartext-Password', ':=', username],
-    );
+    // 1. radcheck — thêm CẢ 2 định dạng (liền + có dấu ':')
+    for (const username of usernames) {
+      await connection.query(
+        'INSERT INTO radcheck (username, attribute, op, value) VALUES (?, ?, ?, ?)',
+        [username, 'Cleartext-Password', ':=', username],
+      );
+    }
 
-    // 2. radusergroup
-    await connection.query(
-      'INSERT INTO radusergroup (username, groupname, priority) VALUES (?, ?, ?)',
-      [username, groupName, 1],
-    );
+    // 2. radusergroup — gán group cho CẢ 2 định dạng
+    for (const username of usernames) {
+      await connection.query(
+        'INSERT INTO radusergroup (username, groupname, priority) VALUES (?, ?, ?)',
+        [username, groupName, 1],
+      );
+    }
 
-    // 3. userinfo
+    // 3. userinfo — chỉ 1 bản ghi (dùng dạng liền làm key hiển thị)
     await connection.query(
       'INSERT INTO userinfo (username, firstname, department, notes, creationdate, creationby, updatedate, updateby) '
       + 'VALUES (?, ?, ?, ?, NOW(), ?, NOW(), ?)',
-      [username, String(deviceName || '').trim(), String(department || '').trim(), String(notes || '').trim(), createdByValue, createdByValue],
+      [variants.compact, String(deviceName || '').trim(), String(department || '').trim(), String(notes || '').trim(), createdByValue, createdByValue],
     );
 
     await connection.commit();
@@ -87,8 +104,10 @@ async function addMacToRadius({ mac, deviceName, group, department, notes, creat
     return {
       ok: true,
       code: 'CREATED',
-      message: `Đã thêm MAC ${username} vào RADIUS.`,
-      mac: username,
+      message: `Đã thêm MAC vào RADIUS (${usernames.join(' + ')}).`,
+      mac: variants.compact,
+      macColon: variants.colon,
+      usernames,
       group: groupName,
     };
   } catch (error) {
@@ -112,4 +131,4 @@ async function macExists(username) {
   }
 }
 
-module.exports = { addMacToRadius, macExists, normalizeMac, getPool };
+module.exports = { addMacToRadius, macExists, normalizeMac, macVariants, colonMac, getPool };
