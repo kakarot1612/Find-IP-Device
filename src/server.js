@@ -446,7 +446,8 @@ async function handleRadiusAddMac(request, response) {
   }
 
   const mac = String(input.mac || '').trim();
-  const deviceName = String(input.deviceName || input.firstname || '').trim();
+  // firstname (userinfo) nhận đúng giá trị Description từ app IT
+  const deviceName = String(input.description || input.deviceName || input.firstname || '').trim();
   const group = String(input.group || input.groupname || 'VLAN16_QR').trim();
   const department = String(input.department || '').trim();
   const notes = String(input.notes || '').trim();

@@ -266,13 +266,16 @@ RADIUS_DB_NAME=radiusdb
 ```json
 {
   "mac": "c8:12:0b:d9:c0:09",
-  "deviceName": "TV-DF dai 02",
+  "description": "TV-DF dai 02",
   "group": "VLAN16_QR",
   "department": "",
   "notes": "Ticket #1024",
   "createdBy": "API_Gateway"
 }
 ```
+
+- `description` chính là giá trị ghi vào `userinfo.firstname` (tên/địa chỉ thiết bị hiển thị trên DaloRADIUS).
+- Không có `description` thì fallback về `deviceName` → `firstname`.
 
 **Response:**
 ```json
